@@ -1,7 +1,7 @@
 package com.example.qrscannerdemo.camerax
 
+import androidx.camera.core.ImageAnalysis
 import androidx.camera.mlkit.vision.MlKitAnalyzer
-import androidx.camera.view.CameraController.COORDINATE_SYSTEM_VIEW_REFERENCED
 import androidx.camera.view.LifecycleCameraController
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.layout.Box
@@ -10,7 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
@@ -29,9 +29,10 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.qrscannerdemo.util.filterInContainer
+import com.example.qrscannerdemo.util.pickMinimumDeviationFromCenter
 import com.google.mlkit.vision.barcode.BarcodeScannerOptions
 import com.google.mlkit.vision.barcode.BarcodeScanning
-import com.google.mlkit.vision.barcode.common.Barcode
 
 @Composable
 fun CameraScreen() {
@@ -45,7 +46,7 @@ fun CameraScreen() {
 
     val barcodeScanner = BarcodeScanning.getClient(
         BarcodeScannerOptions.Builder()
-            .setBarcodeFormats(Barcode.FORMAT_QR_CODE).build()
+            .build()
     )
 
     val cameraController = LifecycleCameraController(context)
@@ -54,12 +55,17 @@ fun CameraScreen() {
                 ContextCompat.getMainExecutor(context),
                 MlKitAnalyzer(
                     listOf(barcodeScanner),
-                    COORDINATE_SYSTEM_VIEW_REFERENCED,
+                    ImageAnalysis.COORDINATE_SYSTEM_VIEW_REFERENCED ,
                     ContextCompat.getMainExecutor(context)
                 ) { result ->
-                    result?.getValue(barcodeScanner)?.firstOrNull()?.let { barcode ->
-                        // QRコードを読み取った時の処理
-                        viewModel.setCameraString(barcode.rawValue ?: "")
+                    result?.getValue(barcodeScanner)
+                        ?.filterInContainer(previewView)
+                        ?.takeIf { it.isNotEmpty() }
+                        ?.let { barcodes ->
+                            barcodes.pickMinimumDeviationFromCenter(previewView).let { barcode ->
+                                // QRコードを読み取った時の処理
+                                viewModel.setCode(barcode)
+                            }
                     }
                 }
             )
@@ -70,8 +76,8 @@ fun CameraScreen() {
     previewView.controller = cameraController
 
     Scaffold(floatingActionButton = {
-        FloatingActionButton(onClick = { }) {
-            Icon(imageVector = Icons.Default.Add, contentDescription = "No action")
+        FloatingActionButton(onClick = { viewModel.erase() }) {
+            Icon(imageVector = Icons.Default.Delete, contentDescription = "Erase")
         }
     }) { paddingValues ->
         Column(
