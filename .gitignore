@@ -13,3 +13,5 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+qr_scan_demo_key
